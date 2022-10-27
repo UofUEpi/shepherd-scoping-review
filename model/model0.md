@@ -31,11 +31,8 @@ library(AUC)
 ``` r
 keywords <- readLines("../data-raw/keywords.txt")
 
-data_yes <- readxl::read_xlsx("../data-raw/Eligible for Full Text Review_10-26-22.xlsx") |>
-  as.data.table()
-
-data_no  <- readxl::read_xlsx("../data-raw/Ineligible Abstracts_10-26-22.xlsx") |>
-  as.data.table()
+data_yes <- fread("../data-raw/elegible.csv") 
+data_no  <- fread("../data-raw/inelegible.csv") 
 
 data_all <- rbind(data_yes, data_no, fill = TRUE)
 n <- nrow(data_all)
@@ -46,23 +43,32 @@ n <- nrow(data_all)
 ``` r
 # Generating abstract clean
 data_all[, abstract := Abstract]
-words <- stringr::str_extract_all(data_all$abstract, "[[:upper:]]{3,}", simplify = FALSE)
 data_all[, abstract := tolower(abstract)]
 
+extract_ngrams <- function(dat, name. = "ngrams") {
+  
+  ngrams_1 <- str_split(tolower(dat), "\\s+|\\n")
 
-ngrams_1 <- str_split(data_all$abstract, "\\s+|\\n")
+  ngrams_2 <- lapply(ngrams_1, ngrams, n = 2) |>
+    lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE)) |>
+    lapply(\(d) unique(unlist(d)))
+  
+  ngrams_4 <- lapply(ngrams_1, ngrams, n = 4) |>
+    lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE)) |>
+    lapply(\(d) unique(unlist(d)))
+  
+  ngrams_3 <- lapply(ngrams_1, ngrams, n = 3) |>
+    lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE))  |>
+    lapply(\(d) unique(unlist(d)))
+  
+  assign(x = paste0(name., "_1"), value = ngrams_1, envir = .GlobalEnv)
+  assign(x = paste0(name., "_2"), value = ngrams_2, envir = .GlobalEnv)
+  assign(x = paste0(name., "_3"), value = ngrams_3, envir = .GlobalEnv)
+  assign(x = paste0(name., "_4"), value = ngrams_4, envir = .GlobalEnv)
+  
+}
 
-ngrams_2 <- lapply(ngrams_1, ngrams, n = 2) |>
-  lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE)) |>
-  lapply(\(d) unique(unlist(d)))
-
-ngrams_4 <- lapply(ngrams_1, ngrams, n = 4) |>
-  lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE)) |>
-  lapply(\(d) unique(unlist(d)))
-
-ngrams_3 <- lapply(ngrams_1, ngrams, n = 3) |>
-  lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE))  |>
-  lapply(\(d) unique(unlist(d)))
+extract_ngrams(data_all$Abstract)
 
 # Ranking the ngrams_3 and ngrams_4
 ngrams_top_2 <- table(unlist(ngrams_2, recursive = TRUE)) |> as.data.table()
@@ -73,18 +79,18 @@ stopw <- paste0("^(", paste(tm::stopwords(), collapse = "|"), "|\\s)+$")
 ngrams_top_2[grepl(stopw, V1) == FALSE]
 ```
 
-                             V1  N
-        1:         copyright â© 91
-        2:          of covid-19 65
-        3:         the covid-19 51
-        4:            number of 45
-        5:           this study 41
-       ---                        
-    25346:   zero exponentially  1
-    25347:              zero in  1
-    25348: zhang, dhanalakshmi,  1
-    25349:           zone, such  1
-    25350:         zubair shah.  1
+                             V1   N
+        1:          copyright © 132
+        2:          of covid-19  81
+        3:         the covid-19  73
+        4:            number of  58
+        5:           this study  55
+       ---                         
+    34912:              zero in   1
+    34913: zhang, dhanalakshmi,   1
+    34914:         zhang, elahe   1
+    34915:              zn, cd,   1
+    34916:           zone, such   1
 
 ``` r
 ngrams_top_3 <- table(unlist(ngrams_3, recursive = TRUE)) |> as.data.table()
@@ -106,47 +112,57 @@ k <- length(keyterms)
 # Generating the data matrix
 
 ``` r
-data_mat <- matrix(
-  0L,
-  nrow = n, ncol = k, 
-  dimnames = list(1:n, keyterms)
-  )
-
-# One term
-idx_1 <- Map(\(a,b) {
-  a <- intersect(a, keyterms)
-  cbind(rep(b, length(a)), a)
-  }, a = ngrams_1, b = 1:n) |>
-  do.call(what = rbind)
-
-data_mat[idx_1] <- 1L
-
-# Two terms
-idx_1 <- Map(\(a,b) {
-  a <- intersect(a, keyterms)
-  cbind(rep(b, length(a)), a)
-  }, a = ngrams_2, b = 1:n) |>
-  do.call(what = rbind)
-
-data_mat[idx_1] <- 1L
-
-# Three terms
-idx_1 <- Map(\(a,b) {
-  a <- intersect(a, keyterms)
-  cbind(rep(b, length(a)), a)
-  }, a = ngrams_3, b = 1:n) |>
-  do.call(what = rbind)
-
-data_mat[idx_1] <- 1L
-
-# Four terms
-idx_1 <- Map(\(a,b) {
-  a <- intersect(a, keyterms)
-  cbind(rep(b, length(a)), a)
-  }, a = ngrams_4, b = 1:n) |>
-  do.call(what = rbind)
-
-data_mat[idx_1] <- 1L
+build_mat <- function(ng1, ng2, ng3, ng4, keyterms.) {
+  
+  n. <- length(ng1)
+  k. <- length(keyterms.)
+  
+  data_mat <- matrix(
+    0L,
+    nrow = n., ncol = k., 
+    dimnames = list(1:n., keyterms.)
+    )
+  
+  # One term
+  idx_1 <- Map(\(a,b) {
+    a <- intersect(a, keyterms.)
+    cbind(rep(b, length(a)), a)
+    }, a = ng1, b = 1:n.) |>
+    do.call(what = rbind)
+  
+  data_mat[idx_1] <- 1L
+  
+  # Two terms
+  idx_1 <- Map(\(a,b) {
+    a <- intersect(a, keyterms.)
+    cbind(rep(b, length(a)), a)
+    }, a = ng2, b = 1:n.) |>
+    do.call(what = rbind)
+  
+  data_mat[idx_1] <- 1L
+  
+  # Three terms
+  idx_1 <- Map(\(a,b) {
+    a <- intersect(a, keyterms.)
+    cbind(rep(b, length(a)), a)
+    }, a = ng3, b = 1:n.) |>
+    do.call(what = rbind)
+  
+  data_mat[idx_1] <- 1L
+  
+  # Four terms
+  idx_1 <- Map(\(a,b) {
+    a <- intersect(a, keyterms.)
+    cbind(rep(b, length(a)), a)
+    }, a = ng4, b = 1:n.) |>
+    do.call(what = rbind)
+  
+  data_mat[idx_1] <- 1L
+  
+  data_mat
+  
+}
+data_mat <- build_mat(ngrams_1, ngrams_2, ngrams_3, ngrams_4, keyterms. = keyterms)
 ```
 
 ``` r
@@ -265,8 +281,8 @@ model$save("modelo-00-keras")
 evaluate(model, x_test, y_test)
 ```
 
-        loss 
-    0.274997 
+         loss 
+    0.1863797 
 
 ``` r
 p <- predict(model, x = x_test)
@@ -278,3 +294,26 @@ plot(aucs, main = sprintf("AUC-ROC %.2f", auc(aucs)))
 ```
 
 ![](model0_files/figure-gfm/Evaluation-1.png)
+
+# Predicting for the larger dataset
+
+``` r
+dat_to_score <- fread("../data-raw/not-screened.csv")
+extract_ngrams(dat_to_score$Abstract, name. = "ngrams_2")
+data_mat <- build_mat(ngrams_2_1, ngrams_2_2, ngrams_2_3, ngrams_2_4, keyterms. = keyterms)
+
+x_new <- data_mat |>
+  as.vector() |>
+  array_reshape(c(nrow(data_mat), k), order = "F")
+
+p2 <- predict(model, x = x_new)
+
+res <- data.table(
+  score_txt = fifelse(p2 > .90, "Yes", fifelse(p2 < .10, "No", "Not sure")),
+  score = as.vector(p2),
+  dat_to_score[, .(Title, Authors, `Accession Number`, `Published Year`, Journal)]
+  )
+res <- res[order(-abs(fifelse(score > .5, score, 1-score))),]
+
+fwrite(res, "model0-predictions.csv")
+```
