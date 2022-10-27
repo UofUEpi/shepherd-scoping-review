@@ -12,7 +12,6 @@ Quarto enables you to weave together content and executable code into a finished
 We use the R packages tensorflow and readxl
 
 ```{r setup-and-read}
-#| echo: false
 library(tensorflow)
 library(tm)
 library(data.table)
@@ -35,8 +34,6 @@ n <- nrow(data_all)
 ## Identifying key concepts
 
 ```{r prep}
-#| echo: false
-
 # Generating abstract clean
 data_all[, abstract := Abstract]
 words <- stringr::str_extract_all(data_all$abstract, "[[:upper:]]{3,}", simplify = FALSE)

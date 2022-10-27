@@ -10,13 +10,68 @@ finished document. To learn more about Quarto see <https://quarto.org>.
 
 We use the R packages tensorflow and readxl
 
+``` r
+library(tensorflow)
+library(tm)
+```
+
     Loading required package: NLP
+
+``` r
+library(data.table)
+library(stringr)
+library(NLP)
+library(AUC)
+```
 
     AUC 0.3.2
 
     Type AUCNews() to see the change log and ?AUC to get an overview.
 
+``` r
+keywords <- readLines("../data-raw/keywords.txt")
+
+data_yes <- readxl::read_xlsx("../data-raw/Eligible for Full Text Review_10-26-22.xlsx") |>
+  as.data.table()
+
+data_no  <- readxl::read_xlsx("../data-raw/Ineligible Abstracts_10-26-22.xlsx") |>
+  as.data.table()
+
+data_all <- rbind(data_yes, data_no, fill = TRUE)
+n <- nrow(data_all)
+```
+
 ## Identifying key concepts
+
+``` r
+# Generating abstract clean
+data_all[, abstract := Abstract]
+words <- stringr::str_extract_all(data_all$abstract, "[[:upper:]]{3,}", simplify = FALSE)
+data_all[, abstract := tolower(abstract)]
+
+
+ngrams_1 <- str_split(data_all$abstract, "\\s+|\\n")
+
+ngrams_2 <- lapply(ngrams_1, ngrams, n = 2) |>
+  lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE)) |>
+  lapply(\(d) unique(unlist(d)))
+
+ngrams_4 <- lapply(ngrams_1, ngrams, n = 4) |>
+  lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE)) |>
+  lapply(\(d) unique(unlist(d)))
+
+ngrams_3 <- lapply(ngrams_1, ngrams, n = 3) |>
+  lapply(\(d) sapply(d, paste, collapse = " ", simplify = FALSE))  |>
+  lapply(\(d) unique(unlist(d)))
+
+# Ranking the ngrams_3 and ngrams_4
+ngrams_top_2 <- table(unlist(ngrams_2, recursive = TRUE)) |> as.data.table()
+setorder(ngrams_top_2, -N)
+
+# Removing those with stopwords
+stopw <- paste0("^(", paste(tm::stopwords(), collapse = "|"), "|\\s)+$")
+ngrams_top_2[grepl(stopw, V1) == FALSE]
+```
 
                              V1  N
         1:         copyright â© 91
@@ -30,6 +85,23 @@ We use the R packages tensorflow and readxl
     25348: zhang, dhanalakshmi,  1
     25349:           zone, such  1
     25350:         zubair shah.  1
+
+``` r
+ngrams_top_3 <- table(unlist(ngrams_3, recursive = TRUE)) |> as.data.table()
+setorder(ngrams_top_3, -N)
+
+ngrams_top_4 <- table(unlist(ngrams_4, recursive = TRUE)) |> as.data.table()
+setorder(ngrams_top_4, -N)
+
+# For each, we will keep the ngrams with at least 5 cases
+ngrams_top_2 <- ngrams_top_2[1:200]
+ngrams_top_3 <- ngrams_top_3[1:200][N >= 5]
+ngrams_top_4 <- ngrams_top_4[1:100][N >= 5]
+
+# Keyterms
+keyterms <- c(ngrams_top_2$V1, ngrams_top_3$V1, ngrams_top_4$V1, keywords)
+k <- length(keyterms)
+```
 
 # Generating the data matrix
 
