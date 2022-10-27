@@ -215,7 +215,7 @@ model <- keras_model_sequential(
 model |> compile(
   loss = loss_mean_absolute_error,
   keras::optimizer_adam(learning_rate = .01),
-  metrics = c("mae"), weighted_metrics = list(NULL), 
+  metrics = list(NULL), weighted_metrics = list(NULL), 
 )
 
 # Fitting the model
@@ -235,22 +235,38 @@ plot(history)
 
 ``` r
 # 
-# # Guardando modelo -------------------------------------------------------------
-# if (!dir.exists("modelo-00-keras")) {
-#   dir.create("modelo-00-keras")
-# } else {
-#   file.remove(list.files("modelo-00-keras", all.files = TRUE, full.names = TRUE))
-# }
-# 
-# model$save("modelo-00-keras")
+# Saving the model -------------------------------------------------------------
+if (!dir.exists("modelo-00-keras")) {
+  dir.create("modelo-00-keras")
+} else {
+  file.remove(list.files("modelo-00-keras", all.files = TRUE, full.names = TRUE))
+}
+```
+
+    Warning in file.remove(list.files("modelo-00-keras", all.files = TRUE,
+    full.names = TRUE)): cannot remove file 'modelo-00-keras/.', reason 'Invalid
+    argument'
+
+    Warning in file.remove(list.files("modelo-00-keras", all.files = TRUE,
+    full.names = TRUE)): cannot remove file 'modelo-00-keras/..', reason 'Directory
+    not empty'
+
+    Warning in file.remove(list.files("modelo-00-keras", all.files = TRUE,
+    full.names = TRUE)): cannot remove file 'modelo-00-keras/variables', reason
+    'Directory not empty'
+
+    [1] FALSE FALSE  TRUE  TRUE  TRUE FALSE
+
+``` r
+model$save("modelo-00-keras")
 ```
 
 ``` r
 evaluate(model, x_test, y_test)
 ```
 
-        loss      mae 
-    0.274997 0.274997 
+        loss 
+    0.274997 
 
 ``` r
 p <- predict(model, x = x_test)

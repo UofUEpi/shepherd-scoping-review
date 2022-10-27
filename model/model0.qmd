@@ -188,7 +188,7 @@ model <- keras_model_sequential(
 model |> compile(
   loss = loss_mean_absolute_error,
   keras::optimizer_adam(learning_rate = .01),
-  metrics = c("mae"), weighted_metrics = list(NULL), 
+  metrics = list(NULL), weighted_metrics = list(NULL), 
 )
 
 # Fitting the model
@@ -203,14 +203,14 @@ history <- model |>
 
 plot(history)
 # 
-# # Guardando modelo -------------------------------------------------------------
-# if (!dir.exists("modelo-00-keras")) {
-#   dir.create("modelo-00-keras")
-# } else {
-#   file.remove(list.files("modelo-00-keras", all.files = TRUE, full.names = TRUE))
-# }
-# 
-# model$save("modelo-00-keras")
+# Saving the model -------------------------------------------------------------
+if (!dir.exists("modelo-00-keras")) {
+  dir.create("modelo-00-keras")
+} else {
+  file.remove(list.files("modelo-00-keras", all.files = TRUE, full.names = TRUE))
+}
+
+model$save("modelo-00-keras")
 ```
 
 ```{r}
