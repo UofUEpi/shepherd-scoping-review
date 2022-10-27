@@ -206,6 +206,7 @@ model <- keras_model_sequential(
   layer_dense(
     units = (k), input_shape = k
     ) |>
+  layer_activation_relu() |>
   layer_dropout(rate = .2) |>
   layer_activation_relu() |>
   layer_dense(units = 1, activation = "sigmoid")
@@ -227,7 +228,12 @@ history <- model |>
     validation_split = .2 #, sample_weight = w
     )
 
-# plot(history)
+plot(history)
+```
+
+![](model0_files/figure-gfm/unnamed-chunk-4-1.png)
+
+``` r
 # 
 # # Guardando modelo -------------------------------------------------------------
 # if (!dir.exists("modelo-00-keras")) {
